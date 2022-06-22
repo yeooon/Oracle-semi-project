@@ -1,0 +1,362 @@
+
+6.
+-- ○ 교수 삭제 프로시저
+
+
+CREATE OR REPLACE PROCEDURE PRC_PROF_DELETE
+(
+    -- 아이디 입력 변수
+    V_PROF_ID IN PROF.PROF_ID%TYPE
+)
+IS
+    -- 에러 변수 선언
+    -- 찾는 데이터가 존재하지 않는 에러
+    NOTEXIST_ERROR EXCEPTION;
+BEGIN
+    -- 교수 테이블에서 ID로 조회 후 삭제
+    DELETE
+    FROM PROF
+    WHERE PROF_ID = V_PROF_ID;
+    
+    -- 결과 집합의 결과 ROW 수가 0이면 TRUE, 아니면 FALSE를 반환(묵시적 커서 이용)
+    -- 조회 결과 수가 0일 경우엔 에러 발생
+    IF SQL%NOTFOUND
+    THEN RAISE NOTEXIST_ERROR;
+    END IF;
+
+COMMIT;
+
+EXCEPTION
+    WHEN NOTEXIST_ERROR
+        THEN RAISE_APPLICATION_ERROR(-20005,'일치하는 데이터가 없습니다.');
+            ROLLBACK;
+    WHEN OTHERS
+        THEN ROLLBACK;
+END;
+
+
+7.
+-- ○교수 삭제 트리거
+-- 교수 삭제 시, 개설과정에서도 삭제
+CREATE OR REPLACE TRIGGER PRC_PROF_DELETE_1
+    BEFORE
+    DELETE ON PROF
+    FOR EACH ROW
+BEGIN
+    DELETE
+    FROM OPEN_COUR
+    WHERE PROF_ID=:OLD.PROF_ID;
+END;
+
+DROP PROCEDURE PROF_DELETE;
+DROP TRIGGER PROF_DELETE_1;
+
+
+10.
+-- ○ 학생 삭제 프로시저
+
+CREATE OR REPLACE PROCEDURE PRC_STU_DELETE
+(
+    V_STU_ID    IN STU.STU_ID%TYPE
+)
+IS
+    NOTEXIST_ERROR EXCEPTION;
+BEGIN
+    DELETE
+    FROM STU
+    WHERE STU_ID = V_STU_ID; 
+
+    -- 결과 집합의 결과 ROW 수가 0이면 TRUE, 아니면 FALSE를 반환
+    -- 조회 결과 수가 0일 경우엔 에러 발생    
+    IF SQL%NOTFOUND 
+    THEN RAISE NOTEXIST_ERROR;
+    END IF;
+     
+    COMMIT;
+    
+    EXCEPTION
+        WHEN NOTEXIST_ERROR
+            THEN RAISE_APPLICATION_ERROR(-20005,'일치하는 데이터가 없습니다.');
+                ROLLBACK;
+        WHEN OTHERS
+            THEN ROLLBACK;  
+END;
+
+
+11.
+--○ 학생 삭제 트리거
+--> 학생에서 DELETE가 실행됐을 때 
+--> 수강신청 테이블에서도 학생 삭제
+-- ▶개설과정에서 과정 삭제
+CREATE OR REPLACE TRIGGER PRC_STU_DELETE_1
+    BEFORE
+    DELETE ON STU
+    FOR EACH ROW
+BEGIN
+    DELETE
+    FROM APP
+    WHERE STU_ID=:OLD.STU_ID;
+END; 
+
+
+
+14.
+-- 과정 삭제 프로시저 
+
+
+CREATE OR REPLACE PROCEDURE PRC_COURSE_DELETE
+(
+    V_COURSE_ID IN COURSE.COURSE_ID%TYPE
+)
+IS
+    NOTEXIST_ERROR EXCEPTION;
+BEGIN
+    DELETE
+    FROM COURSE
+    WHERE COURSE_ID = V_COURSE_ID;
+
+    -- 결과 집합의 결과 ROW 수가 0이면 TRUE, 아니면 FALSE를 반환
+    -- 조회 결과 수가 0일 경우엔 에러 발생    
+    IF SQL%NOTFOUND 
+    THEN RAISE NOTEXIST_ERROR;
+    END IF;
+    
+    COMMIT;
+
+EXCEPTION
+    WHEN NOTEXIST_ERROR
+        THEN RAISE_APPLICATION_ERROR(-20005,'일치하는 데이터가 없습니다.');
+            ROLLBACK;
+    WHEN OTHERS
+        THEN ROLLBACK;        
+END;
+
+
+15.
+--○ 과정 삭제 트리거
+--> 과정에서 DELETE가 실행됐을 때 
+--> 개설과정 테이블에서도 과정 삭제
+-- ▶개설과정에서 과정 삭제
+CREATE OR REPLACE TRIGGER PRC_COURSE_DELETE_1
+    BEFORE
+    DELETE ON COURSE
+    FOR EACH ROW
+BEGIN
+    DELETE
+    FROM OPEN_COUR
+    WHERE COURSE_ID=:OLD.COURSE_ID;
+END; 
+
+
+
+18.
+-- 과목 삭제 프로시저
+
+
+CREATE OR REPLACE PROCEDURE PRC_SUBJECT_DELETE
+(
+    V_SUBJECT_ID IN SUBJECT.SUBJECT_ID%TYPE
+)
+IS
+    NOTEXIST_ERROR EXCEPTION;
+BEGIN
+    DELETE
+    FROM SUBJECT
+    WHERE SUBJECT_ID = V_SUBJECT_ID;
+
+    -- 결과 집합의 결과 ROW 수가 0이면 TRUE, 아니면 FALSE를 반환
+    -- 조회 결과 수가 0일 경우엔 에러 발생        
+    IF SQL%NOTFOUND 
+    THEN RAISE NOTEXIST_ERROR;
+    END IF;
+    
+    COMMIT;
+    
+    EXCEPTION 
+        WHEN NOTEXIST_ERROR
+            THEN RAISE_APPLICATION_ERROR(-20005,'일치하는 데이터가 없습니다.');
+                ROLLBACK;
+        WHEN OTHERS
+            THEN ROLLBACK;
+END;
+
+
+
+19.
+--○ 과목 삭제 트리거
+--> 과목에서 DELETE가 실행됐을 때 
+--> 개설과목 테이블에서도 과목 삭제
+-- ▶개설과목에서 과목 삭제
+CREATE OR REPLACE TRIGGER PRC_SUBJECT_DELETE_1
+    BEFORE
+    DELETE ON SUBJECT
+    FOR EACH ROW
+BEGIN
+    DELETE
+    FROM OPEN_SUBJ
+    WHERE SUBJECT_ID = :OLD.SUBJECT_ID;
+END;
+
+
+
+20.
+-- ○성적 입력
+
+
+CREATE OR REPLACE PROCEDURE PRC_SCORE_INSERT
+(
+    V_OPEN_SUBJ_ID      IN SCORE.OPEN_SUBJ_ID%TYPE      -- 개설과목코드   
+   ,V_APP_ID            IN SCORE.APP_ID%TYPE            -- 수강신청코드
+   ,V_ATTEND_SCORE      IN SCORE.ATTEND_SCORE%TYPE      -- 출결성적
+   ,V_WRITE_SCORE       IN SCORE.WRITE_SCORE%TYPE       -- 필기성적
+   ,V_PRACTICE_SCORE    IN SCORE.PRACTICE_SCORE%TYPE    -- 실기성적
+)
+IS
+    V_SCORE_ID  SCORE.SCORE_ID%TYPE;                -- 점수 코드
+    V_MID_DROP    NUMBER;                           -- 중도포기  
+    MID_DROP_STU_ERROR EXCEPTION;                   -- 중도포기에러     
+BEGIN
+    SELECT COUNT(*) INTO V_MID_DROP
+    FROM DROPOUT
+    WHERE APP_ID = V_APP_ID;
+    
+    -- 중도포기한 과목을 입력하려고 할 때 에러 발생
+    IF (V_MID_DROP> 0)
+        THEN RAISE MID_DROP_STU_ERROR;
+    END IF;
+    
+    --SCORE_ID + 시퀀스 번호 표기 
+    V_SCORE_ID := 'S'||TO_CHAR(SYSDATE,'YY');
+    
+    -- 성적테이블에 INSERT
+    INSERT INTO SCORE(SCORE_ID, OPEN_SUBJ_ID, APP_ID, ATTEND_SCORE, WRITE_SCORE, PRACTICE_SCORE)
+    VALUES(V_SCORE_ID||LPAD(TO_CHAR(SEQ_SCORE_ID.NEXTVAL),5,'0'), V_OPEN_SUBJ_ID, V_APP_ID, 
+          V_ATTEND_SCORE, V_WRITE_SCORE, V_PRACTICE_SCORE);
+
+    -- 커밋
+    COMMIT;
+    
+    -- 예외처리
+    EXCEPTION
+        WHEN MID_DROP_STU_ERROR 
+            THEN RAISE_APPLICATION_ERROR(-20007, '중도포기한 수업입니다.');
+                ROLLBACK;
+         WHEN OTHERS
+            THEN ROLLBACK;
+END;
+
+
+21.
+-- 성적 수정
+
+
+CREATE OR REPLACE PROCEDURE PRC_SCORE_UPDATE
+(
+    V_SCORE_ID          IN SCORE. SCORE_ID%TYPE
+   ,V_ATTEND_SCORE      IN SCORE.ATTEND_SCORE%TYPE
+   ,V_WRITE_SCORE       IN SCORE.WRITE_SCORE%TYPE
+   ,V_PRACTICE_SCORE    IN SCORE.PRACTICE_SCORE%TYPE
+)
+IS
+BEGIN
+    -- 출결, 필기, 실기 업데이트
+    UPDATE SCORE
+    SET ATTEND_SCORE = V_ATTEND_SCORE, WRITE_SCORE = V_WRITE_SCORE, PRACTICE_SCORE = V_PRACTICE_SCORE
+    WHERE SCORE_ID = V_SCORE_ID;
+END;
+
+
+
+22.
+-- 성적 삭제
+
+
+CREATE OR REPLACE PROCEDURE PRC_SCORE_DELETE
+(
+    V_SCORE_ID IN SCORE.SCORE_ID%TYPE
+)
+IS
+    NOTEXIST_ERROR EXCEPTION;
+BEGIN
+    DELETE
+    FROM SCORE
+    WHERE SCORE_ID = V_SCORE_ID;
+    
+    -- 결과 집합의 결과 ROW 수가 0이면 TRUE, 아니면 FALSE를 반환
+    -- 조회 결과 수가 0일 경우엔 에러 발생
+    IF SQL%NOTFOUND
+    THEN RAISE NOTEXIST_ERROR;
+    END IF;
+    
+    COMMIT;
+    
+    EXCEPTION 
+        WHEN NOTEXIST_ERROR
+            THEN RAISE_APPLICATION_ERROR(-20005,'일치하는 데이터가 없습니다.');
+                ROLLBACK;
+        WHEN OTHERS
+            THEN ROLLBACK;    
+END;
+
+
+
+23.
+-- 배점 부여
+
+CREATE OR REPLACE PROCEDURE PRC_SCORE_POINT
+(
+     V_OPEN_SUBJ_ID   IN OPEN_SUBJ.OPEN_SUBJ_ID%TYPE
+    ,V_WRITE_POINT    IN OPEN_SUBJ.WRITE_POINT%TYPE     -- 필기배점
+    ,V_PRACTICE_POINT IN OPEN_SUBJ.PRACTICE_POINT%TYPE  -- 실기배점
+    ,V_ATTEND_POINT   IN OPEN_SUBJ.ATTEND_POINT%TYPE    -- 출결배점
+)
+IS
+BEGIN
+    UPDATE OPEN_SUBJ
+    SET WRITE_POINT = V_WRITE_POINT, PRACTICE_POINT = V_PRACTICE_POINT, ATTEND_POINT = V_ATTEND_POINT
+    WHERE OPEN_SUBJ_ID = V_OPEN_SUBJ_ID;
+END;
+
+
+
+24.
+-- 수강과목 총점 함수
+
+CREATE OR REPLACE FUNCTION TOTAL_SCORE
+(
+    --성적 SCORE,  개설과목(배점) OPEN_SUBJ 호출
+    V_SCORE_ID IN SCORE.SCORE_ID%TYPE
+   ,V_OPEN_SUBJ_ID IN OPEN_SUBJ.OPEN_SUBJ_ID%TYPE
+)
+    -- 숫자값을 리턴
+    RETURN NUMBER
+IS
+    -- 주요 변수 선언
+    RESULT NUMBER;
+    
+    V_P_POINT OPEN_SUBJ.PRACTICE_POINT%TYPE;
+    V_W_POINT OPEN_SUBJ.WRITE_POINT%TYPE;
+    V_A_POINT OPEN_SUBJ.ATTEND_POINT%TYPE;
+    
+    V_P_SCORE SCORE.PRACTICE_SCORE%TYPE;
+    V_W_SCORE SCORE.WRITE_SCORE%TYPE;
+    V_A_SCORE SCORE.ATTEND_SCORE%TYPE;
+    
+BEGIN
+    -- 배점 받아오기
+    -- NULL일 경우 0으로 치환
+    SELECT NVL(PRACTICE_POINT,0), NVL(WRITE_POINT,0), NVL(ATTEND_POINT,0) INTO V_P_POINT, V_W_POINT, V_A_POINT
+    FROM OPEN_SUBJ
+    WHERE OPEN_SUBJ_ID = V_OPEN_SUBJ_ID;
+    
+    -- 점수 받아오기
+    -- NULL일 경우 0으로 치환    
+    SELECT NVL(PRACTICE_SCORE,0), NVL(WRITE_SCORE,0), NVL(ATTEND_SCORE,0) INTO V_P_SCORE, V_W_SCORE, V_A_SCORE
+    FROM SCORE
+    WHERE SCORE_ID = V_SCORE_ID;
+
+    RESULT := (V_P_POINT*V_P_SCORE + V_W_POINT*V_W_SCORE + V_A_POINT*V_A_SCORE)/100;
+
+    -- 최종 결과 반환
+    RETURN RESULT;
+END;
